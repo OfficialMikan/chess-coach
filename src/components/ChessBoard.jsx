@@ -107,14 +107,14 @@ export default function ChessBoard({
         setSelected(null); setLegalTargets([]);
       } else if (piece && piece.color === chess.turn()) {
         setSelected(sq);
-        setLegalTargets(chess.moves({ square: sq, verbose: true }).map(m => m.to));
+        setLegalTargets(chess.moves({ verbose: true }).filter(m => m.from === sq).map(m => m.to));
       } else {
         setSelected(null); setLegalTargets([]);
       }
     } else {
       if (piece && piece.color === chess.turn()) {
         setSelected(sq);
-        setLegalTargets(chess.moves({ square: sq, verbose: true }).map(m => m.to));
+        setLegalTargets(chess.moves({ verbose: true }).filter(m => m.from === sq).map(m => m.to));
       }
     }
   }, [selected, legalTargets, chess, interactive, onMove]);
@@ -141,7 +141,12 @@ export default function ChessBoard({
           const isLight = (dr+dc) % 2 === 0;
           const isSel = sq === selected;
           const isTarget = legalTargets.includes(sq);
-          const isCheck = sq[0] === chess.board().flat().find(p => p?.type==='k'&&p?.color===chess.turn())?.square?.[0] && chess.in_check();
+          // v1.x: board pieces have a .square property; use inCheck() not in_check()
+          const inCheck = chess.inCheck();
+          const isCheck = inCheck && (() => {
+            const kingSq = chess.board().flat().find(p => p?.type === 'k' && p?.color === chess.turn())?.square;
+            return sq === kingSq;
+          })();
           const hl = highlightSquares[sq];
 
           let bg = isLight ? '#f0d9b5' : '#b58863';

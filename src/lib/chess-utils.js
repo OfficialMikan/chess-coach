@@ -74,7 +74,7 @@ export function buildFenHistory(pgn) {
   const fens = [c.fen()];
   const moves = [];
   try {
-    c.load_pgn(pgn, { sloppy: true });
+    c.loadPgn(pgn, { sloppy: true });
     const history = c.history({ verbose: true });
     const replay = new Chess();
     for (const m of history) {
@@ -107,7 +107,8 @@ export function getAttackedSquares(chess, color) {
   chess.board().forEach((row, r) => {
     row.forEach((piece, f) => {
       if (piece && piece.color === color) {
-        const moves = chess.moves({ square: 'abcdefgh'[f] + (8-r), verbose: true });
+        const sq = 'abcdefgh'[f] + (8-r);
+        const moves = chess.moves({ verbose: true }).filter(m => m.from === sq);
         moves.forEach(m => attacked.add(m.to));
       }
     });

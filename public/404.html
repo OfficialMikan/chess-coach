@@ -11,13 +11,12 @@
     restores via the script below.
   -->
   <script>
-    const path = window.location.pathname;
-    const repo = '/chess-coach';
-    // Only redirect if we're under the repo base path
+    var repo = '/chess-coach';
+    var path = window.location.pathname;
     if (path.startsWith(repo)) {
-      const rest = path.slice(repo.length) || '/';
-      sessionStorage.setItem('redirect', rest);
-      window.location.replace(repo + '/?p=' + encodeURIComponent(rest));
+      var rest = path.slice(repo.length) || '/';
+      sessionStorage.setItem('spa_redirect', rest);
+      window.location.replace(repo + '/');
     }
   </script>
 </head>

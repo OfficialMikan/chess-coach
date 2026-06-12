@@ -7,7 +7,7 @@ import CommentaryBox from '../components/CommentaryBox';
 import { useStore } from '../store/useStore';
 import { saveGame } from '../lib/firebase';
 import * as SF from '../lib/stockfish';
-import { quickComment, coachSystemPrompt } from '../lib/ai';
+import { quickComment, callAI, toGeminiHistory, coachSystemPrompt } from '../lib/ai';
 import { getMoveClassification, getOpeningName, getMaterialCount, scoreToString, lanToSan } from '../lib/chess-utils';
 
 export default function PlayPage() {
@@ -73,7 +73,7 @@ export default function PlayPage() {
       if (move.captured)           addComment('info', `Captured the ${move.captured.toUpperCase()}. Material has shifted!`);
       if (move.flags?.includes('k')) addComment('good', 'Castled kingside ♜ — king safety improved!');
       if (move.flags?.includes('q')) addComment('good', 'Castled queenside — watch the open files!');
-      if (chess.in_check())         addComment('warning', `Check! ${turn === 'w' ? 'White' : 'Black'} must respond.`);
+      if (chess.inCheck())          addComment('warning', `Check! ${turn === 'w' ? 'White' : 'Black'} must respond.`);
 
       /* AI deep comment on blunders/mistakes */
       if ((cls.class === 'blunder' || cls.class === 'mistake') && geminiKey) {
@@ -111,7 +111,7 @@ export default function PlayPage() {
       setCurrentIdx(i => i + 1);
       setMoves(m => [...m, { san: result.san, from: result.from, to: result.to }]);
       setHighlights({ [result.from]: 'last', [result.to]: 'last' });
-      if (chess.game_over()) handleGameEnd();
+      if (chess.isGameOver()) handleGameEnd();
     } catch (e) { console.error(e); }
     setThinking(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,7 +129,7 @@ export default function PlayPage() {
     setMoves(m => [...m, { san: move.san, from: move.from, to: move.to }]);
     setHighlights({ [move.from]: 'last', [move.to]: 'last' });
     setArrows([]);
-    if (chess.game_over()) { handleGameEnd(); return; }
+    if (chess.isGameOver()) { handleGameEnd(); return; }
     analyzeAndComment(move, fenBefore);
     setTimeout(makeEngineMove, 350);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -137,10 +137,10 @@ export default function PlayPage() {
 
   /* ── Game end ── */
   const handleGameEnd = useCallback(() => {
-    let result = chess.in_checkmate()
+    let result = chess.isCheckmate()
       ? (chess.turn() === 'w' ? 'Black wins by checkmate!' : 'White wins by checkmate!')
-      : chess.in_stalemate() ? 'Draw — stalemate!'
-      : chess.in_draw()      ? 'Draw!'
+      : chess.isStalemate() ? 'Draw — stalemate!'
+      : chess.isDraw()      ? 'Draw!'
       : 'Game over';
     setGameStatus('ended');
     setGameOver(result);
@@ -204,7 +204,6 @@ export default function PlayPage() {
       `Moves so far: ${moves.slice(0, currentIdx).map(m => m.san).join(' ')}. ` +
       `Engine ELO setting: ${trainerSettings.stockfishElo}.`;
     try {
-      const { callAI, toGeminiHistory } = await import('../lib/ai');
       const reply = await callAI(coachSystemPrompt(ctx), toGeminiHistory(chatHistory), text, geminiKey, 300);
       setChatHistory(h => [...h, { role:'user', content:text }, { role:'assistant', content:reply }]);
       addComment('tip', `🧑‍🏫 ${reply}`);

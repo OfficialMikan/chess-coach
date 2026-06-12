@@ -8,8 +8,10 @@
     <meta name="theme-color" content="#1a1a18" />
     <meta name="description" content="Personal AI Chess Coach — play, analyze, and train with Stockfish + Gemini AI" />
     <title>ChessCoach AI</title>
-    <!-- GitHub Pages SPA path restore -->
-    <script src="/chess-coach/spa-redirect.js" onerror="void 0"></script>
+    <!-- GitHub Pages SPA path restore — runs before React mounts -->
+    <script>
+      (function(){var r=sessionStorage.getItem('spa_redirect');if(r){sessionStorage.removeItem('spa_redirect');window.history.replaceState(null,'',r);}})();
+    </script>
   </head>
   <body>
     <div id="root"></div>
