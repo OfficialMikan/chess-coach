@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ChessCoach AI</title>
+  <!--
+    GitHub Pages SPA redirect hack:
+    When someone navigates directly to /chess-coach/some-path,
+    GitHub serves this 404.html. We redirect them to index.html
+    with the path encoded as a query param, which index.html then
+    restores via the script below.
+  -->
+  <script>
+    const path = window.location.pathname;
+    const repo = '/chess-coach';
+    // Only redirect if we're under the repo base path
+    if (path.startsWith(repo)) {
+      const rest = path.slice(repo.length) || '/';
+      sessionStorage.setItem('redirect', rest);
+      window.location.replace(repo + '/?p=' + encodeURIComponent(rest));
+    }
+  </script>
+</head>
+<body></body>
+</html>

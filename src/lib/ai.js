@@ -1,35 +1,46 @@
 /**
- * ai.js — Gemini AI wrapper with CORS-safe proxy routing
+ * ai.js — Gemini AI wrapper, works on ALL deployment targets
  *
- * CORS fix explanation:
- *   Browsers block direct fetch() to generativelanguage.googleapis.com from
- *   localhost (and most deployed origins) because Google doesn't send the
- *   Access-Control-Allow-Origin header for API key requests.
+ * CORS problem & solution:
+ *   Browsers block direct fetch() to generativelanguage.googleapis.com.
+ *   We route through a proxy that varies by environment:
  *
- *   Fix: All requests go through a local proxy path /api/gemini/...
- *   • Dev  → Vite's devServer.proxy rewrites to googleapis.com (vite.config.js)
- *   • Prod → netlify/functions/gemini.js (or vercel/api/gemini.js) acts as relay
+ *   ┌─────────────────┬───────────────────────────────────────────────────┐
+ *   │ Environment     │ Proxy used                                        │
+ *   ├─────────────────┼───────────────────────────────────────────────────┤
+ *   │ npm run dev     │ Vite devServer.proxy  →  /api/gemini              │
+ *   │ Netlify         │ netlify/functions/gemini.js  →  /api/gemini       │
+ *   │ Vercel          │ api/gemini.js  →  /api/gemini                     │
+ *   │ GitHub Pages    │ Cloudflare Worker (free)  →  external URL         │
+ *   └─────────────────┴───────────────────────────────────────────────────┘
  *
- * How to get a FREE Gemini key (never expires, 1500 req/day):
- *   https://aistudio.google.com/apikey  →  Create API key  →  paste in app
+ * For GitHub Pages you need ONE free Cloudflare Worker (5 min setup):
+ *   See SETUP.md → "GitHub Pages + Cloudflare Worker"
+ *   Then set VITE_GEMINI_PROXY_URL=https://your-worker.workers.dev
+ *   in your GitHub repo's Settings → Secrets → Actions → Variables
+ *
+ * Free Gemini key: https://aistudio.google.com/apikey
  */
 
-const MODEL        = 'gemini-2.0-flash';
-// In dev Vite proxies /api/gemini → googleapis.com/v1beta/models
-// In prod your serverless function handles the same path
-const PROXY_BASE   = '/api/gemini';
+const MODEL = 'gemini-2.0-flash';
+
+// Vite replaces import.meta.env.* at build time
+// If not set, falls back to the local proxy path (works for dev/Netlify/Vercel)
+const PROXY_BASE = import.meta.env.VITE_GEMINI_PROXY_URL
+  ? import.meta.env.VITE_GEMINI_PROXY_URL.replace(/\/$/, '') // external CF worker
+  : '/api/gemini';                                            // local proxy path
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Core fetch
+// Core call
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * callAI — send a conversation to Gemini, return the text reply.
  *
- * @param {string} systemPrompt   Coach persona / context (can be empty string)
+ * @param {string} systemPrompt   Coach persona (can be empty string)
  * @param {Array}  history        [{role:'user'|'model', parts:[{text}]}]
  * @param {string} userMessage    The new user message
- * @param {string} apiKey         Gemini API key (AIza…)
+ * @param {string} apiKey         Gemini API key  (AIza…)
  * @param {number} maxTokens      Max output tokens (default 512)
  */
 export async function callAI(systemPrompt, history = [], userMessage, apiKey, maxTokens = 512) {
@@ -41,14 +52,10 @@ export async function callAI(systemPrompt, history = [], userMessage, apiKey, ma
   ];
 
   const body = {
-    // system_instruction must be omitted entirely if empty (Gemini rejects null)
     ...(systemPrompt ? { system_instruction: { parts: [{ text: systemPrompt }] } } : {}),
     contents,
-    generationConfig: {
-      maxOutputTokens: maxTokens,
-      temperature: 0.75,
-    },
-    // Safety settings relaxed so chess analysis isn't blocked by "violence" heuristics
+    generationConfig: { maxOutputTokens: maxTokens, temperature: 0.75 },
+    // Relaxed so chess move names ("attack", "capture", "sacrifice") aren't blocked
     safetySettings: [
       { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_ONLY_HIGH' },
       { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_ONLY_HIGH' },
@@ -57,8 +64,8 @@ export async function callAI(systemPrompt, history = [], userMessage, apiKey, ma
     ],
   };
 
-  // Key goes as query param — proxy strips it before forwarding so it never
-  // appears in the browser's Network tab origin headers
+  // Key goes as a query param — the proxy strips it before it reaches Google,
+  // so it never appears in outbound browser headers.
   const url = `${PROXY_BASE}/${MODEL}:generateContent?key=${apiKey}`;
 
   let res;
@@ -69,37 +76,34 @@ export async function callAI(systemPrompt, history = [], userMessage, apiKey, ma
       body:    JSON.stringify(body),
     });
   } catch (networkErr) {
-    // Likely: proxy not running, or no internet
-    throw new Error(`Network error — is the dev server running? (${networkErr.message})`);
+    throw new Error(`Network error — proxy unreachable. (${networkErr.message})`);
   }
 
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try {
-      const errJson = await res.json();
-      msg = errJson?.error?.message || msg;
-      // Surface the most common mistakes clearly
-      if (res.status === 400) msg = `Bad request: ${msg} — check your API key format`;
-      if (res.status === 403) msg = `API key invalid or quota exceeded (403)`;
-      if (res.status === 429) msg = `Rate limit hit — slow down a little (429)`;
+      const j = await res.json();
+      msg = j?.error?.message || msg;
+      if (res.status === 400) msg = `Bad request — check your key format (${msg})`;
+      if (res.status === 403) msg = `API key invalid or not enabled for Gemini (403)`;
+      if (res.status === 429) msg = `Rate limit hit — wait a moment (429)`;
     } catch {}
     throw new Error(msg);
   }
 
-  const data = await res.json();
-
-  // Handle Gemini's block / finish reasons
+  const data      = await res.json();
   const candidate = data?.candidates?.[0];
+
   if (!candidate) {
-    const blockReason = data?.promptFeedback?.blockReason;
-    throw new Error(blockReason ? `Blocked by safety filter: ${blockReason}` : 'Empty response from Gemini');
+    const reason = data?.promptFeedback?.blockReason;
+    throw new Error(reason ? `Blocked: ${reason}` : 'Gemini returned no candidates');
   }
   if (candidate.finishReason === 'SAFETY') {
-    throw new Error('Response blocked by Gemini safety filters');
+    throw new Error('Response blocked by Gemini safety filter');
   }
 
   const text = candidate?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Gemini returned no text content');
+  if (!text) throw new Error('Gemini returned empty text');
   return text.trim();
 }
 
@@ -107,10 +111,7 @@ export async function callAI(systemPrompt, history = [], userMessage, apiKey, ma
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Convert simple [{role:'user'|'assistant', content}] history
- * → Gemini format [{role:'user'|'model', parts:[{text}]}]
- */
+/** Convert [{role:'user'|'assistant', content}] → Gemini history format */
 export function toGeminiHistory(history) {
   return history.map(m => ({
     role:  m.role === 'assistant' ? 'model' : 'user',
@@ -118,35 +119,35 @@ export function toGeminiHistory(history) {
   }));
 }
 
-/** Single-shot call — no history, for quick one-off comments */
+/** Single-shot call with no history */
 export async function quickComment(prompt, apiKey, maxTokens = 120) {
   return callAI('', [], prompt, apiKey, maxTokens);
 }
 
 /**
- * Validate a Gemini key with a minimal 5-token request.
- * Returns { ok: true } or { ok: false, error: string }
+ * Validate a Gemini key.
+ * Returns { ok: true } or { ok: false, error: 'human readable reason' }
  */
 export async function validateKey(apiKey) {
-  if (!apiKey?.startsWith('AIza')) {
+  if (!apiKey || !apiKey.startsWith('AIza')) {
     return { ok: false, error: 'Key should start with "AIza"' };
   }
   try {
-    await callAI('', [], 'Reply with the single word: ok', apiKey, 5);
+    const reply = await callAI('', [], 'Reply with exactly one word: ok', apiKey, 5);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message };
   }
 }
 
-/** Coach Magnus system prompt with optional game context */
+/** Coach Magnus system prompt */
 export function coachSystemPrompt(gameContext = '') {
   return [
     'You are Coach Magnus, a friendly expert chess coach.',
-    'Style: encouraging, precise, specific. Use chess notation (e4, Nf3, etc).',
+    'Be encouraging, precise, and specific. Use chess notation (e4, Nf3, Qxd5).',
     'Keep answers SHORT — 2-3 sentences unless deep analysis is requested.',
-    'Never use markdown headers or bullet lists unless explicitly asked.',
-    'Light use of chess emoji ♟♔♕ is fine.',
-    gameContext ? `\nCurrent game context:\n${gameContext}` : '',
+    'No markdown headers or bullet lists unless explicitly asked.',
+    'Light chess emoji ♟♔♕ is fine.',
+    gameContext ? `\nGame context:\n${gameContext}` : '',
   ].filter(Boolean).join('\n');
 }
