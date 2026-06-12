@@ -4,13 +4,12 @@ import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, delet
 
 // Replace with your Firebase config from https://console.firebase.google.com
 const firebaseConfig = {
-  apiKey: "AIzaSyDx8iBS3jJmXIgr_dj85uOJbj6y_NIgad8",
-  authDomain: "chess-coach-d4471.firebaseapp.com",
-  projectId: "chess-coach-d4471",
-  storageBucket: "chess-coach-d4471.firebasestorage.app",
-  messagingSenderId: "4072189253",
-  appId: "1:4072189253:web:ce370b0872bb5cfe71a22c",
-  measurementId: "G-0PBVWFKLFH"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);

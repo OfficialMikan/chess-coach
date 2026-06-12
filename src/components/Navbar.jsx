@@ -42,14 +42,14 @@ export default function Navbar() {
     const trimmed = keyInput.trim();
     if (!trimmed) { setGeminiKey(''); setShowSettings(false); return; }
     setValidating(true);
-    const ok = await validateKey(trimmed);
+    const result = await validateKey(trimmed);
     setValidating(false);
-    if (ok) {
+    if (result.ok) {
       setGeminiKey(trimmed);
       setShowSettings(false);
       addNotification('Gemini key saved ✓ — Coach Magnus is ready!', 'success');
     } else {
-      addNotification('Key invalid or quota exceeded — check it and try again', 'error');
+      addNotification(`Key check failed: ${result.error}`, 'error');
     }
   };
 
