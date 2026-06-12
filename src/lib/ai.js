@@ -126,14 +126,22 @@ export async function quickComment(prompt, apiKey, maxTokens = 120) {
 
 /**
  * Validate a Gemini key.
+ * Accepts both key formats Google issues:
+ *   - Legacy:  AIzaSy...  (older AI Studio keys)
+ *   - Current: AQ.Ab8...  (newer AI Studio keys)
  * Returns { ok: true } or { ok: false, error: 'human readable reason' }
  */
 export async function validateKey(apiKey) {
-  if (!apiKey || !apiKey.startsWith('AIza')) {
-    return { ok: false, error: 'Key should start with "AIza"' };
+  if (!apiKey || apiKey.trim().length < 10) {
+    return { ok: false, error: 'Key is too short — paste the full key' };
+  }
+  const trimmed = apiKey.trim();
+  const looksValid = trimmed.startsWith('AIza') || trimmed.startsWith('AQ.');
+  if (!looksValid) {
+    return { ok: false, error: 'Unexpected key format — expected "AIza..." or "AQ...."' };
   }
   try {
-    const reply = await callAI('', [], 'Reply with exactly one word: ok', apiKey, 5);
+    await callAI('', [], 'Reply with exactly one word: ok', trimmed, 5);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e.message };

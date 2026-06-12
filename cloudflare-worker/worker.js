@@ -30,10 +30,10 @@ export default {
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         headers: {
-          'Access-Control-Allow-Origin': corsOrigin,
+          'Access-Control-Allow-Origin':  corsOrigin,
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Max-Age': '86400',
+          'Access-Control-Max-Age':       '86400',
         },
       });
     }
@@ -43,9 +43,9 @@ export default {
     }
 
     // Parse incoming URL to get model path + key
-    const url = new URL(request.url);
+    const url    = new URL(request.url);
     // Strip leading /  (worker receives full path as-is)
-    const path = url.pathname.replace(/^\//, '');
+    const path   = url.pathname.replace(/^\//, '');
     const apiKey = url.searchParams.get('key');
 
     if (!apiKey) {
@@ -58,28 +58,28 @@ export default {
     const googleUrl = `https://generativelanguage.googleapis.com/v1beta/models/${path}?key=${apiKey}`;
 
     try {
-      const body = await request.text();
+      const body     = await request.text();
       const upstream = await fetch(googleUrl, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
       });
 
       const responseBody = await upstream.text();
       return new Response(responseBody, {
-        status: upstream.status,
+        status:  upstream.status,
         headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': corsOrigin,
+          'Content-Type':                 'application/json',
+          'Access-Control-Allow-Origin':  corsOrigin,
         },
       });
     } catch (err) {
       return new Response(
         JSON.stringify({ error: { message: 'Worker proxy error: ' + err.message } }),
         {
-          status: 502,
+          status:  502,
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':                'application/json',
             'Access-Control-Allow-Origin': corsOrigin,
           },
         }
