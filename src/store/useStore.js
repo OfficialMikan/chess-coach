@@ -1,17 +1,20 @@
 import { create } from 'zustand';
 
-export const useStore = create((set, get) => ({
+export const useStore = create((set) => ({
   // Auth
   user: null,
   setUser: (user) => set({ user }),
 
   // App state
-  activeTab: 'play', // 'play' | 'analyze' | 'puzzles' | 'library'
+  activeTab: 'play',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  // Settings
-  apiKey: localStorage.getItem('cc_apikey') || '',
-  setApiKey: (key) => { localStorage.setItem('cc_apikey', key); set({ apiKey: key }); },
+  // AI — Gemini key (free forever at aistudio.google.com/apikey)
+  geminiKey: localStorage.getItem('cc_gemini_key') || '',
+  setGeminiKey: (key) => {
+    localStorage.setItem('cc_gemini_key', key);
+    set({ geminiKey: key });
+  },
 
   // Trainer settings
   trainerSettings: {
@@ -24,20 +27,22 @@ export const useStore = create((set, get) => ({
     commentary: true,
     autoAnalyze: true,
   },
-  setTrainerSettings: (settings) => set(s => ({
-    trainerSettings: { ...s.trainerSettings, ...settings }
-  })),
+  setTrainerSettings: (settings) =>
+    set((s) => ({ trainerSettings: { ...s.trainerSettings, ...settings } })),
 
   // Saved games
   savedGames: [],
   setSavedGames: (games) => set({ savedGames: games }),
-  addSavedGame: (game) => set(s => ({ savedGames: [game, ...s.savedGames] })),
+  addSavedGame: (game) => set((s) => ({ savedGames: [game, ...s.savedGames] })),
 
   // Notifications
   notifications: [],
   addNotification: (msg, type = 'info') => {
     const id = Date.now();
-    set(s => ({ notifications: [...s.notifications, { id, msg, type }] }));
-    setTimeout(() => set(s => ({ notifications: s.notifications.filter(n => n.id !== id) })), 3500);
+    set((s) => ({ notifications: [...s.notifications, { id, msg, type }] }));
+    setTimeout(
+      () => set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) })),
+      3500
+    );
   },
 }));

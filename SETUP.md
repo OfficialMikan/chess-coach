@@ -1,3 +1,17 @@
+# ⭐ IMPORTANT — Free AI Setup (Gemini)
+
+Coach Magnus uses **Google Gemini 2.0 Flash** — completely free, forever, no credit card:
+
+1. Go to **https://aistudio.google.com/apikey**
+2. Sign in with any Google account
+3. Click **"Create API key"**
+4. Copy the key (starts with `AIza…`)
+5. Open the app → click **"ADD GEMINI KEY"** badge (top right) → paste → Save
+
+That's it. **1,500 free requests per day**, never expires, no billing required.
+
+---
+
 # ChessCoach AI — Setup Guide
 
 ## What You're Getting
@@ -77,9 +91,9 @@ service cloud.firestore {
 
 ## Step 3: Get a Claude API Key (for AI coaching)
 
-1. Go to https://console.anthropic.com
+1. Go to https://aistudio.google.com/apikey
 2. Sign up / log in → **API Keys** → Create key
-3. Copy the key (starts with `sk-ant-api03-…`)
+3. Copy the key (starts with `AIza-…`)
 4. You'll paste this into the app's settings (top-right badge says "ADD API KEY")
 
 > The key is stored only in your browser's localStorage — never sent anywhere except Anthropic's API.
